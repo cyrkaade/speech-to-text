@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text AI Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .recording-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .record-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .record-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .record-button.recording {
+            background: #ef4444;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .status {
+            margin-top: 15px;
+            color: #666;
+            font-size: 1.1em;
+            min-height: 30px;
+        }
+
+        .transcript-section, .response-section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            color: #667eea;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .transcript-box, .response-box {
+            background: #f7f7f7;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 100px;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .response-box {
+            background: #f0f9ff;
+            border-color: #bfdbfe;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: #ef4444;
+            background: #fee;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .timer {
+            font-family: monospace;
+            font-size: 1.5em;
+            color: #ef4444;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Speech to Text AI Assistant</h1>
+
+        <div class="recording-section">
+            <button id="recordButton" class="record-button">
+                Start Recording
+            </button>
+            <div class="status" id="status">Click to start recording</div>
+            <div class="timer" id="timer"></div>
+        </div>
+
+        <div class="transcript-section">
+            <div class="section-title">Transcript:</div>
+            <div class="transcript-box" id="transcript">Your speech will appear here...</div>
+        </div>
+
+        <div class="response-section">
+            <div class="section-title">AI Response:</div>
+            <div class="response-box" id="response">The AI response will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let recordingStartTime;
+        let timerInterval;
+
+        const recordButton = document.getElementById('recordButton');
+        const statusDiv = document.getElementById('status');
+        const transcriptDiv = document.getElementById('transcript');
+        const responseDiv = document.getElementById('response');
+        const timerDiv = document.getElementById('timer');
+
+        recordButton.addEventListener('click', toggleRecording);
+
+        async function toggleRecording() {
+            if (!isRecording) {
+                await startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    await sendAudioToServer(audioBlob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                recordButton.textContent = 'Stop Recording';
+                recordButton.classList.add('recording');
+                statusDiv.textContent = 'Recording... Click to stop';
+
+                recordingStartTime = Date.now();
+                timerInterval = setInterval(updateTimer, 100);
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                statusDiv.innerHTML = '<div class="error">Error: Could not access microphone. Please grant permission.</div>';
+            }
+        }
+
+        function updateTimer() {
+            const elapsed = Date.now() - recordingStartTime;
+            const seconds = Math.floor(elapsed / 1000);
+            const milliseconds = Math.floor((elapsed % 1000) / 100);
+            timerDiv.textContent = `${seconds}.${milliseconds}s`;
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+            isRecording = false;
+            recordButton.textContent = 'Start Recording';
+            recordButton.classList.remove('recording');
+            statusDiv.textContent = 'Processing...';
+            clearInterval(timerInterval);
+            timerDiv.textContent = '';
+        }
+
+        async function sendAudioToServer(audioBlob) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.wav');
+
+            transcriptDiv.innerHTML = '<div class="loading"></div> Transcribing...';
+            responseDiv.textContent = 'Waiting for transcript...';
+
+            try {
+                const response = await fetch('/process-audio', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                transcriptDiv.textContent = result.transcript;
+                responseDiv.innerHTML = '<div class="loading"></div> Generating response...';
+
+                // Get AI response
+                const aiResponse = await fetch('/get-ai-response', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: result.transcript })
+                });
+
+                const aiResult = await aiResponse.json();
+
+                if (aiResult.error) {
+                    throw new Error(aiResult.error);
+                }
+
+                responseDiv.textContent = aiResult.response;
+                statusDiv.textContent = 'Complete! Click to record again';
+
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                transcriptDiv.textContent = 'Error processing audio';
+                responseDiv.textContent = 'Could not generate response';
+            }
+        }
+    </script>
+</body>
+</html>
