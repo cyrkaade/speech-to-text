@@ -5,7 +5,13 @@
       "Bash(dir:*)",
       "Bash(python app.py:*)",
       "Bash(ollama --version:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nRemove hardcoded OpenAI API key and use environment variable\n\n- Moved OpenAI API key to environment variable for security\n- Added .env.example file as template\n- Added warning if OPENAI_API_KEY is not set\n\nGenerated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git branch:*)",
+      "Bash(git reset:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd questionnaire feature with OpenAI integration\n\n- Created 5-question health questionnaire (Russian)\n- Integrated OpenAI API for health risk assessment\n- Added SQLite database for storing responses\n- Used environment variables for API keys (security best practice)\n- Added .env.example template\n\nGenerated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
