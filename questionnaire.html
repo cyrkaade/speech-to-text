@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Медицинская Анкета</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+
+        .question-page {
+            display: none;
+        }
+
+        .question-page.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .question-number {
+            color: #667eea;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .question-title {
+            color: #333;
+            font-size: 1.8em;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        .recording-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .record-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 100px;
+            height: 100px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            margin-bottom: 15px;
+        }
+
+        .record-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .record-button.recording {
+            background: #ef4444;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .status {
+            color: #666;
+            font-size: 0.95em;
+            min-height: 25px;
+        }
+
+        .timer {
+            font-family: monospace;
+            font-size: 1.3em;
+            color: #ef4444;
+            margin-top: 10px;
+        }
+
+        .answer-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            transition: border-color 0.3s ease;
+        }
+
+        .answer-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: space-between;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-back {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .btn-back:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-next {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-next:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-submit {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-submit:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: #ef4444;
+            background: #fee;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .completion-message {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .completion-message h2 {
+            color: #10b981;
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        .completion-message p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .summary {
+            background: #f7f7f7;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .summary-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .summary-value {
+            color: #333;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Медицинская Анкета</h1>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="error" id="errorMessage"></div>
+
+        <!-- Question 1: Weight -->
+        <div class="question-page active" data-question="1">
+            <div class="question-number">Вопрос 1 из 5</div>
+            <h2 class="question-title">Укажите вес</h2>
+
+            <div class="recording-section">
+                <button class="record-button" onclick="toggleRecording(1)">
+                    Записать
+                </button>
+                <div class="status" id="status-1">Нажмите для записи ответа</div>
+                <div class="timer" id="timer-1"></div>
+            </div>
+
+            <input type="text" class="answer-input" id="answer-1" placeholder="Например: 70 килограмм">
+
+            <div class="button-group">
+                <button class="btn btn-next" onclick="nextQuestion(1)">Далее</button>
+            </div>
+        </div>
+
+        <!-- Question 2: Heart Rate -->
+        <div class="question-page" data-question="2">
+            <div class="question-number">Вопрос 2 из 5</div>
+            <h2 class="question-title">Укажите ЧСС</h2>
+
+            <div class="recording-section">
+                <button class="record-button" onclick="toggleRecording(2)">
+                    Записать
+                </button>
+                <div class="status" id="status-2">Нажмите для записи ответа</div>
+                <div class="timer" id="timer-2"></div>
+            </div>
+
+            <input type="text" class="answer-input" id="answer-2" placeholder="Например: 72 удара в минуту">
+
+            <div class="button-group">
+                <button class="btn btn-back" onclick="prevQuestion(2)">Назад</button>
+                <button class="btn btn-next" onclick="nextQuestion(2)">Далее</button>
+            </div>
+        </div>
+
+        <!-- Question 3: Edema -->
+        <div class="question-page" data-question="3">
+            <div class="question-number">Вопрос 3 из 5</div>
+            <h2 class="question-title">Наличие отеков</h2>
+
+            <div class="recording-section">
+                <button class="record-button" onclick="toggleRecording(3)">
+                    Записать
+                </button>
+                <div class="status" id="status-3">Нажмите для записи ответа</div>
+                <div class="timer" id="timer-3"></div>
+            </div>
+
+            <input type="text" class="answer-input" id="answer-3" placeholder="Например: да / нет">
+
+            <div class="button-group">
+                <button class="btn btn-back" onclick="prevQuestion(3)">Назад</button>
+                <button class="btn btn-next" onclick="nextQuestion(3)">Далее</button>
+            </div>
+        </div>
+
+        <!-- Question 4: Smoking Status -->
+        <div class="question-page" data-question="4">
+            <div class="question-number">Вопрос 4 из 5</div>
+            <h2 class="question-title">Статус курения</h2>
+
+            <div class="recording-section">
+                <button class="record-button" onclick="toggleRecording(4)">
+                    Записать
+                </button>
+                <div class="status" id="status-4">Нажмите для записи ответа</div>
+                <div class="timer" id="timer-4"></div>
+            </div>
+
+            <input type="text" class="answer-input" id="answer-4" placeholder="Например: курю / не курю / бросил">
+
+            <div class="button-group">
+                <button class="btn btn-back" onclick="prevQuestion(4)">Назад</button>
+                <button class="btn btn-next" onclick="nextQuestion(4)">Далее</button>
+            </div>
+        </div>
+
+        <!-- Question 5: Number of Cigarettes -->
+        <div class="question-page" data-question="5">
+            <div class="question-number">Вопрос 5 из 5</div>
+            <h2 class="question-title">Кол-во сигарет</h2>
+
+            <div class="recording-section">
+                <button class="record-button" onclick="toggleRecording(5)">
+                    Записать
+                </button>
+                <div class="status" id="status-5">Нажмите для записи ответа</div>
+                <div class="timer" id="timer-5"></div>
+            </div>
+
+            <input type="text" class="answer-input" id="answer-5" placeholder="Например: 10 в день / не курю">
+
+            <div class="button-group">
+                <button class="btn btn-back" onclick="prevQuestion(5)">Назад</button>
+                <button class="btn btn-submit" onclick="submitQuestionnaire()">Отправить</button>
+            </div>
+        </div>
+
+        <!-- Completion Page -->
+        <div class="question-page" id="completionPage">
+            <div class="completion-message">
+                <h2>✓ Анкета отправлена!</h2>
+                <p>Спасибо за заполнение медицинской анкеты.</p>
+
+                <div class="score-display" id="scoreDisplay" style="margin: 30px 0;">
+                    <div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; color: white;">
+                        <div style="font-size: 0.9em; margin-bottom: 10px;">Ваш Показатель Здоровья</div>
+                        <div style="font-size: 3em; font-weight: bold;" id="scoreValue">--</div>
+                        <div style="font-size: 0.9em; margin-top: 10px;">из 100</div>
+                        <div style="font-size: 0.85em; margin-top: 15px; opacity: 0.9;" id="scoreMessage"></div>
+                    </div>
+                </div>
+
+                <div class="summary" id="summaryContainer">
+                    <!-- Summary will be populated by JavaScript -->
+                </div>
+
+                <button class="btn btn-next" onclick="viewFeedback()" id="feedbackButton" style="width: 100%; margin-top: 20px;">
+                    Посмотреть Обратную Связь
+                </button>
+
+                <div id="feedbackSection" style="display: none; margin-top: 30px;">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">Рекомендации AI:</h3>
+                    <div style="background: #f0f9ff; padding: 20px; border-radius: 10px; border: 2px solid #bfdbfe; line-height: 1.8;">
+                        <div id="feedbackContent" style="white-space: pre-wrap;">Загрузка...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentQuestion = 1;
+        const totalQuestions = 5;
+        const answers = {};
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordingStartTime;
+        let timerInterval;
+        let activeRecording = null;
+        let currentResponseId = null;
+        let currentScore = null;
+
+        const questions = {
+            1: "Укажите вес",
+            2: "Укажите ЧСС",
+            3: "Наличие отеков",
+            4: "Статус курения",
+            5: "Кол-во сигарет"
+        };
+
+        // Update progress bar
+        function updateProgress() {
+            const progress = (currentQuestion / totalQuestions) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        // Show question
+        function showQuestion(questionNum) {
+            document.querySelectorAll('.question-page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.querySelector(`[data-question="${questionNum}"]`).classList.add('active');
+            currentQuestion = questionNum;
+            updateProgress();
+        }
+
+        // Next question
+        function nextQuestion(questionNum) {
+            const answer = document.getElementById(`answer-${questionNum}`).value.trim();
+
+            if (!answer) {
+                showError('Пожалуйста, введите ответ или запишите его голосом');
+                return;
+            }
+
+            answers[questionNum] = answer;
+            hideError();
+
+            if (questionNum < totalQuestions) {
+                showQuestion(questionNum + 1);
+            }
+        }
+
+        // Previous question
+        function prevQuestion(questionNum) {
+            if (questionNum > 1) {
+                showQuestion(questionNum - 1);
+            }
+        }
+
+        // Toggle recording
+        async function toggleRecording(questionNum) {
+            if (activeRecording === questionNum) {
+                stopRecording(questionNum);
+            } else if (activeRecording === null) {
+                await startRecording(questionNum);
+            }
+        }
+
+        // Start recording
+        async function startRecording(questionNum) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                activeRecording = questionNum;
+
+                const button = document.querySelector(`[data-question="${questionNum}"] .record-button`);
+                const status = document.getElementById(`status-${questionNum}`);
+                const timer = document.getElementById(`timer-${questionNum}`);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    await sendAudioToServer(audioBlob, questionNum);
+                    stream.getTracks().forEach(track => track.stop());
+                    activeRecording = null;
+                };
+
+                mediaRecorder.start();
+                button.textContent = 'Остановить';
+                button.classList.add('recording');
+                status.textContent = 'Идет запись... Нажмите для остановки';
+
+                recordingStartTime = Date.now();
+                timerInterval = setInterval(() => {
+                    const elapsed = Date.now() - recordingStartTime;
+                    const seconds = Math.floor(elapsed / 1000);
+                    const milliseconds = Math.floor((elapsed % 1000) / 100);
+                    timer.textContent = `${seconds}.${milliseconds}s`;
+                }, 100);
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                showError('Ошибка: Не удалось получить доступ к микрофону');
+            }
+        }
+
+        // Stop recording
+        function stopRecording(questionNum) {
+            const button = document.querySelector(`[data-question="${questionNum}"] .record-button`);
+            const status = document.getElementById(`status-${questionNum}`);
+            const timer = document.getElementById(`timer-${questionNum}`);
+
+            mediaRecorder.stop();
+            button.textContent = 'Записать';
+            button.classList.remove('recording');
+            status.textContent = 'Обработка...';
+            clearInterval(timerInterval);
+            timer.textContent = '';
+        }
+
+        // Send audio to server
+        async function sendAudioToServer(audioBlob, questionNum) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.wav');
+
+            const status = document.getElementById(`status-${questionNum}`);
+            const answerInput = document.getElementById(`answer-${questionNum}`);
+
+            status.innerHTML = '<div class="loading"></div> Распознавание...';
+
+            try {
+                const response = await fetch('/process-audio', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                answerInput.value = result.transcript;
+                status.textContent = 'Готово! Можете продолжить';
+                hideError();
+
+            } catch (error) {
+                console.error('Error:', error);
+                status.textContent = 'Ошибка распознавания';
+                showError(`Ошибка: ${error.message}`);
+            }
+        }
+
+        // Submit questionnaire
+        async function submitQuestionnaire() {
+            const answer = document.getElementById('answer-5').value.trim();
+
+            if (!answer) {
+                showError('Пожалуйста, введите ответ или запишите его голосом');
+                return;
+            }
+
+            answers[5] = answer;
+
+            // Show loading state
+            const submitButton = document.querySelector('[data-question="5"] .btn-submit');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Отправка и анализ...';
+
+            try {
+                const response = await fetch('/submit-questionnaire', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ answers })
+                });
+
+                const result = await response.json();
+
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                // Store response ID and score
+                currentResponseId = result.response_id;
+                currentScore = result.score;
+
+                showCompletionPage();
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError(`Ошибка при отправке: ${error.message}`);
+                submitButton.disabled = false;
+                submitButton.textContent = 'Отправить';
+            }
+        }
+
+        // View AI feedback
+        async function viewFeedback() {
+            if (!currentResponseId) {
+                showError('Не удалось загрузить обратную связь');
+                return;
+            }
+
+            const feedbackButton = document.getElementById('feedbackButton');
+            const feedbackSection = document.getElementById('feedbackSection');
+            const feedbackContent = document.getElementById('feedbackContent');
+
+            // Show loading
+            feedbackButton.disabled = true;
+            feedbackButton.textContent = 'Загрузка...';
+            feedbackSection.style.display = 'block';
+            feedbackContent.innerHTML = '<div class="loading"></div> Получение обратной связи от AI...';
+
+            try {
+                const response = await fetch(`/get-feedback/${currentResponseId}`);
+                const result = await response.json();
+
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                feedbackContent.textContent = result.feedback;
+                feedbackButton.style.display = 'none';
+
+            } catch (error) {
+                console.error('Error:', error);
+                feedbackContent.textContent = `Ошибка при загрузке обратной связи: ${error.message}`;
+                feedbackButton.disabled = false;
+                feedbackButton.textContent = 'Попробовать снова';
+            }
+        }
+
+        // Show completion page
+        function showCompletionPage() {
+            const summaryContainer = document.getElementById('summaryContainer');
+            const scoreValue = document.getElementById('scoreValue');
+            const scoreMessage = document.getElementById('scoreMessage');
+
+            // Display score
+            scoreValue.textContent = currentScore;
+
+            // Set score message based on value
+            if (currentScore <= 20) {
+                scoreMessage.textContent = '✓ Отличные показатели здоровья!';
+            } else if (currentScore <= 40) {
+                scoreMessage.textContent = '✓ Хорошие показатели, небольшие улучшения возможны';
+            } else if (currentScore <= 60) {
+                scoreMessage.textContent = '⚠ Умеренный риск, рекомендуются изменения';
+            } else if (currentScore <= 80) {
+                scoreMessage.textContent = '⚠ Повышенный риск, требуется внимание';
+            } else {
+                scoreMessage.textContent = '⚠ Высокий риск, необходима консультация врача';
+            }
+
+            // Display summary
+            let summaryHTML = '';
+            for (let i = 1; i <= totalQuestions; i++) {
+                summaryHTML += `
+                    <div class="summary-item">
+                        <div class="summary-label">${questions[i]}</div>
+                        <div class="summary-value">${answers[i]}</div>
+                    </div>
+                `;
+            }
+
+            summaryContainer.innerHTML = summaryHTML;
+
+            document.querySelectorAll('.question-page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById('completionPage').classList.add('active');
+
+            document.getElementById('progressFill').style.width = '100%';
+        }
+
+        // Show error
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+        }
+
+        // Hide error
+        function hideError() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.classList.remove('show');
+        }
+
+        // Initialize
+        updateProgress();
+    </script>
+</body>
+</html>

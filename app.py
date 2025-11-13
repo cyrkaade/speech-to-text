@@ -2,8 +2,11 @@ from flask import Flask, render_template, request, jsonify
 import os
 import requests
 import json
+import sqlite3
+from datetime import datetime
 from pathlib import Path
 from websockets.sync.client import connect
+from openai import OpenAI
 
 app = Flask(__name__, template_folder='.')
 
@@ -22,6 +25,43 @@ if not SONIOX_API_KEY:
 # Ollama configuration
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llama3.2:1b"  # Lightweight 1B parameter model
+
+# OpenAI configuration
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    print("WARNING: OPENAI_API_KEY environment variable not set!")
+    print("Please set it with: export OPENAI_API_KEY=<your_api_key>")
+
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+# Database configuration
+DATABASE = 'questionnaire.db'
+
+def init_db():
+    """Initialize SQLite database with required tables"""
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            submission_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            weight TEXT,
+            heart_rate TEXT,
+            edema TEXT,
+            smoking_status TEXT,
+            cigarette_count TEXT,
+            ai_score INTEGER,
+            ai_feedback TEXT
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+    print("Database initialized successfully")
+
+# Initialize database on startup
+init_db()
 
 def transcribe_with_soniox(audio_path: str) -> str:
     """
@@ -84,6 +124,10 @@ def transcribe_with_soniox(audio_path: str) -> str:
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/questionnaire')
+def questionnaire():
+    return render_template('questionnaire.html')
 
 @app.route('/process-audio', methods=['POST'])
 def process_audio():
@@ -155,6 +199,146 @@ def get_ai_response():
         }), 500
     except Exception as e:
         print(f"Error getting AI response: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+def get_ai_feedback(answers):
+    """
+    Send questionnaire answers to OpenAI and get health feedback with score
+    """
+    try:
+        prompt = f"""You are a medical health advisor. Based on the following patient questionnaire responses in Russian, provide:
+1. A health risk score from 0-100 (0 = excellent health, 100 = high risk)
+2. Detailed feedback and recommendations in Russian
+
+Patient Responses:
+- Вес (Weight): {answers.get('1', 'Не указано')}
+- ЧСС (Heart Rate): {answers.get('2', 'Не указано')}
+- Наличие отеков (Edema): {answers.get('3', 'Не указано')}
+- Статус курения (Smoking): {answers.get('4', 'Не указано')}
+- Кол-во сигарет (Cigarettes per day): {answers.get('5', 'Не указано')}
+
+Provide your response in the following JSON format:
+{{
+    "score": <number 0-100>,
+    "feedback": "<detailed feedback in Russian>"
+}}"""
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a medical health advisor providing health risk assessments."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=1000
+        )
+
+        result_text = response.choices[0].message.content
+
+        # Try to parse JSON response
+        try:
+            result = json.loads(result_text)
+            return result['score'], result['feedback']
+        except json.JSONDecodeError:
+            # If not JSON, extract score and use full text as feedback
+            import re
+            score_match = re.search(r'"score"\s*:\s*(\d+)', result_text)
+            score = int(score_match.group(1)) if score_match else 50
+            return score, result_text
+
+    except Exception as e:
+        print(f"Error getting AI feedback: {str(e)}")
+        return 50, f"Ошибка при получении обратной связи: {str(e)}"
+
+@app.route('/submit-questionnaire', methods=['POST'])
+def submit_questionnaire():
+    try:
+        data = request.json
+        answers = data.get('answers', {})
+
+        if not answers:
+            return jsonify({'error': 'No answers provided'}), 400
+
+        print("=" * 50)
+        print("Questionnaire Submitted:")
+        print("=" * 50)
+
+        # Get AI feedback
+        print("Getting AI feedback from OpenAI...")
+        ai_score, ai_feedback = get_ai_feedback(answers)
+        print(f"AI Score: {ai_score}")
+        print(f"AI Feedback: {ai_feedback[:100]}...")
+
+        # Save to database
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO responses (weight, heart_rate, edema, smoking_status, cigarette_count, ai_score, ai_feedback)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            answers.get('1', ''),
+            answers.get('2', ''),
+            answers.get('3', ''),
+            answers.get('4', ''),
+            answers.get('5', ''),
+            ai_score,
+            ai_feedback
+        ))
+
+        response_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        print(f"Saved to database with ID: {response_id}")
+        print("=" * 50)
+
+        return jsonify({
+            'success': True,
+            'message': 'Questionnaire submitted successfully',
+            'response_id': response_id,
+            'score': ai_score
+        })
+
+    except Exception as e:
+        print(f"Error submitting questionnaire: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/get-feedback/<int:response_id>', methods=['GET'])
+def get_feedback(response_id):
+    """Retrieve AI feedback for a specific response"""
+    try:
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT ai_score, ai_feedback, weight, heart_rate, edema, smoking_status, cigarette_count, submission_time
+            FROM responses
+            WHERE id = ?
+        ''', (response_id,))
+
+        result = cursor.fetchone()
+        conn.close()
+
+        if not result:
+            return jsonify({'error': 'Response not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'score': result[0],
+            'feedback': result[1],
+            'answers': {
+                'weight': result[2],
+                'heart_rate': result[3],
+                'edema': result[4],
+                'smoking_status': result[5],
+                'cigarette_count': result[6]
+            },
+            'submission_time': result[7]
+        })
+
+    except Exception as e:
+        print(f"Error retrieving feedback: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
