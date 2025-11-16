@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify
 import os
-import requests
 import json
 import sqlite3
 from datetime import datetime
@@ -21,10 +20,6 @@ SONIOX_WEBSOCKET_URL = "wss://stt-rt.soniox.com/transcribe-websocket"
 if not SONIOX_API_KEY:
     print("WARNING: SONIOX_API_KEY environment variable not set!")
     print("Please set it with: export SONIOX_API_KEY=<your_api_key>")
-
-# Ollama configuration
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2:1b"  # Lightweight 1B parameter model
 
 # OpenAI configuration
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
@@ -166,37 +161,31 @@ def get_ai_response():
         if not user_text:
             return jsonify({'error': 'No text provided'}), 400
 
+        if not openai_client:
+            return jsonify({
+                'error': 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.'
+            }), 500
+
         print(f"Getting AI response for: {user_text}")
 
-        # Call Ollama API
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": user_text,
-                "stream": False
-            },
-            timeout=60
+        # Call OpenAI GPT-4 API
+        response = openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful AI assistant. Respond naturally and conversationally."},
+                {"role": "user", "content": user_text}
+            ],
+            temperature=0.7,
+            max_tokens=500
         )
 
-        if response.status_code != 200:
-            raise Exception(f"Ollama API error: {response.status_code}")
-
-        ai_response = response.json()['response']
+        ai_response = response.choices[0].message.content
         print(f"AI Response: {ai_response}")
 
         return jsonify({
             'response': ai_response
         })
 
-    except requests.exceptions.ConnectionError:
-        return jsonify({
-            'error': 'Could not connect to Ollama. Make sure Ollama is running (ollama serve) and the model is installed.'
-        }), 500
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'error': 'Request to Ollama timed out. The model might be too slow or not responding.'
-        }), 500
     except Exception as e:
         print(f"Error getting AI response: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -343,13 +332,18 @@ def get_feedback(response_id):
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("Speech-to-Text AI Assistant (Soniox + Ollama)")
+    print("Speech-to-Text AI Assistant (Soniox + GPT-4)")
     print("=" * 50)
     if SONIOX_API_KEY:
         print("Soniox API: Configured")
     else:
         print("WARNING: Soniox API key not set!")
         print("Set with: export SONIOX_API_KEY=<your_api_key>")
+    if OPENAI_API_KEY:
+        print("OpenAI API: Configured")
+    else:
+        print("WARNING: OpenAI API key not set!")
+        print("Set with: export OPENAI_API_KEY=<your_api_key>")
     print("Starting server...")
     print("Open your browser and go to: http://localhost:5000")
     print("=" * 50)
