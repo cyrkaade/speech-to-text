@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from websockets.sync.client import connect
 from openai import OpenAI
+from medicaments_vocabulary import get_compact_speech_context
 
 app = Flask(__name__, template_folder='.')
 
@@ -46,6 +47,7 @@ def init_db():
             edema TEXT,
             smoking_status TEXT,
             cigarette_count TEXT,
+            daily_routine_medications TEXT,
             ai_score INTEGER,
             ai_feedback TEXT
         )
@@ -58,20 +60,34 @@ def init_db():
 # Initialize database on startup
 init_db()
 
-def transcribe_with_soniox(audio_path: str) -> str:
+def transcribe_with_soniox(audio_path: str, language: str = "ru") -> str:
     """
-    Transcribe audio file using Soniox API.
-    Returns the transcript text.
+    Transcribe audio file using Soniox API with medicament recognition.
+
+    Args:
+        audio_path: Path to the audio file
+        language: Language code ("ru" for Russian, "kk" for Kazakh, "multi" for auto-detect)
+
+    Returns:
+        The transcript text.
     """
     if not SONIOX_API_KEY:
         raise RuntimeError("SONIOX_API_KEY is not set. Please set it as an environment variable.")
+
+    # Get medicament vocabulary for speech context
+    speech_context = get_compact_speech_context(boost_medicaments=20, boost_medical_terms=15)
 
     # Soniox configuration
     config = {
         "api_key": SONIOX_API_KEY,
         "model": "stt-rt-v3",
         "audio_format": "auto",  # Let Soniox detect the format automatically
+        "speech_context": speech_context,  # Add custom vocabulary for medicaments
     }
+
+    # Add language if specified
+    if language and language != "multi":
+        config["language"] = language
 
     print("Connecting to Soniox...")
     with connect(SONIOX_WEBSOCKET_URL) as ws:
@@ -132,20 +148,24 @@ def process_audio():
 
         audio_file = request.files['audio']
 
+        # Get language parameter (default to auto-detect for questionnaire compatibility)
+        language = request.form.get('language', 'multi')
+
         # Save the audio file temporarily
         audio_path = os.path.join(UPLOAD_FOLDER, 'recording.wav')
         audio_file.save(audio_path)
 
-        # Transcribe using Soniox
-        print("Transcribing audio with Soniox...")
-        transcript = transcribe_with_soniox(audio_path)
+        # Transcribe using Soniox with medicament recognition
+        print(f"Transcribing audio with Soniox (language: {language})...")
+        transcript = transcribe_with_soniox(audio_path, language=language)
         print(f"Transcript: {transcript}")
 
         # Clean up the audio file
         os.remove(audio_path)
 
         return jsonify({
-            'transcript': transcript
+            'transcript': transcript,
+            'language': language
         })
 
     except Exception as e:
@@ -205,6 +225,7 @@ Patient Responses:
 - Наличие отеков (Edema): {answers.get('3', 'Не указано')}
 - Статус курения (Smoking): {answers.get('4', 'Не указано')}
 - Кол-во сигарет (Cigarettes per day): {answers.get('5', 'Не указано')}
+- Как прошел день и какие таблетки пили (Daily routine and medications): {answers.get('6', 'Не указано')}
 
 Provide your response in the following JSON format:
 {{
@@ -263,14 +284,15 @@ def submit_questionnaire():
         cursor = conn.cursor()
 
         cursor.execute('''
-            INSERT INTO responses (weight, heart_rate, edema, smoking_status, cigarette_count, ai_score, ai_feedback)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO responses (weight, heart_rate, edema, smoking_status, cigarette_count, daily_routine_medications, ai_score, ai_feedback)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             answers.get('1', ''),
             answers.get('2', ''),
             answers.get('3', ''),
             answers.get('4', ''),
             answers.get('5', ''),
+            answers.get('6', ''),
             ai_score,
             ai_feedback
         ))
@@ -301,7 +323,7 @@ def get_feedback(response_id):
         cursor = conn.cursor()
 
         cursor.execute('''
-            SELECT ai_score, ai_feedback, weight, heart_rate, edema, smoking_status, cigarette_count, submission_time
+            SELECT ai_score, ai_feedback, weight, heart_rate, edema, smoking_status, cigarette_count, daily_routine_medications, submission_time
             FROM responses
             WHERE id = ?
         ''', (response_id,))
@@ -321,9 +343,10 @@ def get_feedback(response_id):
                 'heart_rate': result[3],
                 'edema': result[4],
                 'smoking_status': result[5],
-                'cigarette_count': result[6]
+                'cigarette_count': result[6],
+                'daily_routine_medications': result[7]
             },
-            'submission_time': result[7]
+            'submission_time': result[8]
         })
 
     except Exception as e:

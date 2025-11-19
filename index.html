@@ -143,6 +143,14 @@
         <h1>Speech to Text AI Assistant</h1>
 
         <div class="recording-section">
+            <div style="margin-bottom: 20px;">
+                <label for="languageSelect" style="color: #667eea; font-weight: 600; margin-right: 10px;">Language:</label>
+                <select id="languageSelect" style="padding: 8px 15px; border-radius: 8px; border: 2px solid #667eea; font-size: 1em; cursor: pointer; background: white;">
+                    <option value="ru">Russian (Русский)</option>
+                    <option value="kk">Kazakh (Қазақ)</option>
+                    <option value="multi">Auto-detect</option>
+                </select>
+            </div>
             <button id="recordButton" class="record-button">
                 Start Recording
             </button>
@@ -234,6 +242,10 @@
         async function sendAudioToServer(audioBlob) {
             const formData = new FormData();
             formData.append('audio', audioBlob, 'recording.wav');
+
+            // Add selected language
+            const language = document.getElementById('languageSelect').value;
+            formData.append('language', language);
 
             transcriptDiv.innerHTML = '<div class="loading"></div> Transcribing...';
             responseDiv.textContent = 'Waiting for transcript...';

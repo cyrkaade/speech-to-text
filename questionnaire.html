@@ -289,7 +289,7 @@
 
         <!-- Question 1: Weight -->
         <div class="question-page active" data-question="1">
-            <div class="question-number">Вопрос 1 из 5</div>
+            <div class="question-number">Вопрос 1 из 6</div>
             <h2 class="question-title">Укажите вес</h2>
 
             <div class="recording-section">
@@ -309,7 +309,7 @@
 
         <!-- Question 2: Heart Rate -->
         <div class="question-page" data-question="2">
-            <div class="question-number">Вопрос 2 из 5</div>
+            <div class="question-number">Вопрос 2 из 6</div>
             <h2 class="question-title">Укажите ЧСС</h2>
 
             <div class="recording-section">
@@ -330,7 +330,7 @@
 
         <!-- Question 3: Edema -->
         <div class="question-page" data-question="3">
-            <div class="question-number">Вопрос 3 из 5</div>
+            <div class="question-number">Вопрос 3 из 6</div>
             <h2 class="question-title">Наличие отеков</h2>
 
             <div class="recording-section">
@@ -351,7 +351,7 @@
 
         <!-- Question 4: Smoking Status -->
         <div class="question-page" data-question="4">
-            <div class="question-number">Вопрос 4 из 5</div>
+            <div class="question-number">Вопрос 4 из 6</div>
             <h2 class="question-title">Статус курения</h2>
 
             <div class="recording-section">
@@ -372,7 +372,7 @@
 
         <!-- Question 5: Number of Cigarettes -->
         <div class="question-page" data-question="5">
-            <div class="question-number">Вопрос 5 из 5</div>
+            <div class="question-number">Вопрос 5 из 6</div>
             <h2 class="question-title">Кол-во сигарет</h2>
 
             <div class="recording-section">
@@ -387,6 +387,27 @@
 
             <div class="button-group">
                 <button class="btn btn-back" onclick="prevQuestion(5)">Назад</button>
+                <button class="btn btn-next" onclick="nextQuestion(5)">Далее</button>
+            </div>
+        </div>
+
+        <!-- Question 6: Daily Routine and Medications -->
+        <div class="question-page" data-question="6">
+            <div class="question-number">Вопрос 6 из 6</div>
+            <h2 class="question-title">Как прошел ваш день и какие таблетки вы пили?</h2>
+
+            <div class="recording-section">
+                <button class="record-button" onclick="toggleRecording(6)">
+                    Записать
+                </button>
+                <div class="status" id="status-6">Нажмите для записи ответа</div>
+                <div class="timer" id="timer-6"></div>
+            </div>
+
+            <input type="text" class="answer-input" id="answer-6" placeholder="Например: День прошел хорошо, принимал Аспирин утром и Омепразол вечером">
+
+            <div class="button-group">
+                <button class="btn btn-back" onclick="prevQuestion(6)">Назад</button>
                 <button class="btn btn-submit" onclick="submitQuestionnaire()">Отправить</button>
             </div>
         </div>
@@ -426,7 +447,7 @@
 
     <script>
         let currentQuestion = 1;
-        const totalQuestions = 5;
+        const totalQuestions = 6;
         const answers = {};
         let mediaRecorder;
         let audioChunks = [];
@@ -441,7 +462,8 @@
             2: "Укажите ЧСС",
             3: "Наличие отеков",
             4: "Статус курения",
-            5: "Кол-во сигарет"
+            5: "Кол-во сигарет",
+            6: "Как прошел ваш день и какие таблетки вы пили?"
         };
 
         // Update progress bar
@@ -583,17 +605,17 @@
 
         // Submit questionnaire
         async function submitQuestionnaire() {
-            const answer = document.getElementById('answer-5').value.trim();
+            const answer = document.getElementById('answer-6').value.trim();
 
             if (!answer) {
                 showError('Пожалуйста, введите ответ или запишите его голосом');
                 return;
             }
 
-            answers[5] = answer;
+            answers[6] = answer;
 
             // Show loading state
-            const submitButton = document.querySelector('[data-question="5"] .btn-submit');
+            const submitButton = document.querySelector('[data-question="6"] .btn-submit');
             submitButton.disabled = true;
             submitButton.textContent = 'Отправка и анализ...';
 
